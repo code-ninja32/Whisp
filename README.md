@@ -61,10 +61,10 @@ npm run dev
 ## Available Scripts
 
 - `npm run dev` - Start development server
-- `npm run build` - Build for production
+- `npm run build` - Build for production (outputs to `/docs`)
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
-- `npm run deploy` - Deploy to GitHub Pages
+- `npm run deploy` - Deploy to GitHub Pages using gh-pages
 
 ## How It Works
 
@@ -76,13 +76,50 @@ npm run dev
 
 ## Deployment
 
-The app includes GitHub Pages deployment configuration. To deploy:
+The app is configured to build static files to the `/docs` directory for easy GitHub Pages deployment.
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+This will generate optimized static files in the `/docs` directory.
+
+### Deploy to GitHub Pages
+
+#### Option 1: Using gh-pages (automated)
 
 ```bash
 npm run deploy
 ```
 
-Make sure to configure the `base` path in `vite.config.ts` if deploying to a subdirectory.
+This will build and deploy to the `gh-pages` branch automatically.
+
+#### Option 2: Using /docs folder (recommended)
+
+1. Build the project:
+   ```bash
+   npm run build
+   ```
+
+2. Commit the `/docs` folder to git:
+   ```bash
+   git add docs
+   git commit -m "Build for deployment"
+   git push
+   ```
+
+3. Configure GitHub Pages:
+   - Go to your repository settings
+   - Navigate to Pages section
+   - Set Source to "Deploy from a branch"
+   - Select `main` branch and `/docs` folder
+   - Save
+
+Your site will be available at `https://yourusername.github.io/repository-name/`
+
+**Note:** The `base` path in `vite.config.ts` is set to `/whisp-me-something/` for production. Update this to match your repository name if needed.
 
 ## Project Structure
 
@@ -95,6 +132,7 @@ Whisp/
 │   ├── index.css        # Global styles
 │   └── assets/          # Static assets
 ├── public/              # Public assets
+├── docs/                # Production build output (for GitHub Pages)
 ├── index.html           # HTML template
 ├── package.json         # Dependencies and scripts
 ├── vite.config.ts       # Vite configuration
