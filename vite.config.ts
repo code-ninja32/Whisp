@@ -6,8 +6,7 @@ export default defineConfig({
   base: process.env.NODE_ENV === "production" ? "/Whisp/" : "/",
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: "docs",
+    outDir: "dist",
     emptyOutDir: true,
   },
 });
-
