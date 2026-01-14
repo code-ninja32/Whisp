@@ -1,36 +1,116 @@
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "./supabaseClient";
 
 type WhispUser = { id: string; name: string };
-type Thought = { id: number; text: string; time: string; reactions: number };
+type Thought = { id: number; text: string; created_at: string; reactions: number };
 
 /* ------------ storage utils ------------ */
 
+// Keep user info in localStorage (for session management)
 function getUser(): WhispUser | null {
   return JSON.parse(localStorage.getItem("whisp_user") || "null");
 }
 
-function saveUser(user: WhispUser) {
+function saveUserLocally(user: WhispUser) {
   localStorage.setItem("whisp_user", JSON.stringify(user));
 }
 
-function saveThought(userId: string, text: string) {
-  const all: Record<string, Thought[]> = JSON.parse(localStorage.getItem("whisp_messages") || "{}");
-  if (!all[userId]) all[userId] = [];
-  all[userId].unshift({ id: Date.now(), text, time: new Date().toISOString(), reactions: 0 });
-  localStorage.setItem("whisp_messages", JSON.stringify(all));
+// Supabase functions
+async function createUser(name: string): Promise<WhispUser | null> {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .insert({ name })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating user:", error);
+      return null;
+    }
+
+    const user = { id: data.id, name: data.name };
+    saveUserLocally(user);
+    return user;
+  } catch (err) {
+    console.error("Error:", err);
+    return null;
+  }
 }
 
-function getThoughts(userId: string) {
-  const all: Record<string, Thought[]> = JSON.parse(localStorage.getItem("whisp_messages") || "{}");
-  return all[userId] || [];
+async function saveThought(userId: string, text: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("thoughts")
+      .insert({ user_id: userId, text });
+
+    if (error) {
+      console.error("Error saving thought:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Error:", err);
+    return false;
+  }
 }
 
-function deleteThought(userId: string, thoughtId: number) {
-  const all: Record<string, Thought[]> = JSON.parse(localStorage.getItem("whisp_messages") || "{}");
-  all[userId] = (all[userId] || []).filter(t => t.id !== thoughtId);
-  localStorage.setItem("whisp_messages", JSON.stringify(all));
+async function getThoughts(userId: string): Promise<Thought[]> {
+  try {
+    const { data, error } = await supabase
+      .from("thoughts")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching thoughts:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("Error:", err);
+    return [];
+  }
+}
+
+async function deleteThought(thoughtId: number): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("thoughts")
+      .delete()
+      .eq("id", thoughtId);
+
+    if (error) {
+      console.error("Error deleting thought:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Error:", err);
+    return false;
+  }
+}
+
+async function updateReactions(thoughtId: number, newReactions: number): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("thoughts")
+      .update({ reactions: newReactions })
+      .eq("id", thoughtId);
+
+    if (error) {
+      console.error("Error updating reactions:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Error:", err);
+    return false;
+  }
 }
 
 /* ------------ components ------------ */
@@ -78,13 +158,20 @@ function BottomNav() {
 
 function CreateAccount() {
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  function create() {
+  async function create() {
     if (!name.trim()) return;
-    const user = { id: crypto.randomUUID(), name };
-    saveUser(user);
-    navigate("/me");
+    setLoading(true);
+    const user = await createUser(name.trim());
+    setLoading(false);
+
+    if (user) {
+      navigate("/me");
+    } else {
+      alert("Failed to create account. Please try again.");
+    }
   }
 
   return (
@@ -125,25 +212,27 @@ function CreateAccount() {
             placeholder="Choose a nickname"
             value={name}
             onChange={e => setName(e.target.value)}
+            disabled={loading}
           />
 
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={create}
+            disabled={loading}
             style={{
               marginTop: 12,
               width: "100%",
               padding: "12px 0",
-              background: "#DB2777",
+              background: loading ? "#666" : "#DB2777",
               color: "white",
               borderRadius: 18,
               border: "none",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
             }}
           >
-            Start Whisping ✨
+            {loading ? "Creating..." : "Start Whisping ✨"}
           </motion.button>
         </div>
       </motion.div>
@@ -156,29 +245,38 @@ function CreateAccount() {
 function MyInbox() {
   const user = getUser();
   const [thoughts, setThoughts] = useState<Thought[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) setThoughts(getThoughts(user.id));
+    loadThoughts();
   }, []);
+
+  async function loadThoughts() {
+    if (!user) return;
+    setLoading(true);
+    const data = await getThoughts(user.id);
+    setThoughts(data);
+    setLoading(false);
+  }
 
   if (!user)
     return <div style={{ padding: 24, textAlign: "center", color: "white" }}>No account found</div>;
 
-  const shareLink = `${window.location.origin}/send/${user.id}`;
+  const shareLink = `${window.location.origin}${import.meta.env.BASE_URL}send/${user.id}`;
 
-  function remove(id: number) {
-    if (!user) return;
-    deleteThought(user.id, id);
-    setThoughts(getThoughts(user.id));
+  async function remove(id: number) {
+    const success = await deleteThought(id);
+    if (success) {
+      loadThoughts();
+    }
   }
 
-  function react(id: number) {
-    if (!user) return;
-    const all: Record<string, Thought[]> = JSON.parse(localStorage.getItem("whisp_messages") || "{}");
-    const item = all[user.id].find(t => t.id === id);
-    if (item) item.reactions += 1;
-    localStorage.setItem("whisp_messages", JSON.stringify(all));
-    setThoughts(getThoughts(user.id));
+  async function react(thought: Thought) {
+    const newReactions = thought.reactions + 1;
+    const success = await updateReactions(thought.id, newReactions);
+    if (success) {
+      loadThoughts();
+    }
   }
 
   function shareWhatsApp() {
@@ -242,6 +340,8 @@ function MyInbox() {
 
       <h2>Anonymous thoughts</h2>
 
+      {loading && <p style={{ textAlign: "center", opacity: 0.8 }}>Loading...</p>}
+
       <AnimatePresence>
         {thoughts.map(t => (
           <motion.div
@@ -260,11 +360,11 @@ function MyInbox() {
             <p>{t.text}</p>
 
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 13 }}>
-              <button onClick={() => react(t.id)} style={{ background: "none", border: "none", color: "white" }}>
+              <button onClick={() => react(t)} style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}>
                 ❤️ {t.reactions}
               </button>
 
-              <button onClick={() => remove(t.id)} style={{ background: "none", border: "none", color: "white" }}>
+              <button onClick={() => remove(t.id)} style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}>
                 Delete
               </button>
             </div>
@@ -272,7 +372,7 @@ function MyInbox() {
         ))}
       </AnimatePresence>
 
-      {thoughts.length === 0 && (
+      {!loading && thoughts.length === 0 && (
         <p style={{ textAlign: "center", opacity: 0.8, marginTop: 20 }}>No messages yet 🙈</p>
       )}
     </div>
@@ -285,12 +385,20 @@ function SendThought() {
   const { userId } = useParams<{ userId: string }>();
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  function send() {
+  async function send() {
     if (!text.trim() || !userId) return;
-    saveThought(userId, text);
-    setSent(true);
-    setText("");
+    setSending(true);
+    const success = await saveThought(userId, text.trim());
+    setSending(false);
+
+    if (success) {
+      setSent(true);
+      setText("");
+    } else {
+      alert("Failed to send message. Please try again.");
+    }
   }
 
   return (
@@ -322,22 +430,24 @@ function SendThought() {
             placeholder="Say anything honestly…"
             value={text}
             onChange={e => setText(e.target.value)}
+            disabled={sending}
           />
 
           <button
             onClick={send}
+            disabled={sending}
             style={{
               width: "100%",
               marginTop: 10,
               padding: 12,
               borderRadius: 16,
               border: "none",
-              background: "#DB2777",
+              background: sending ? "#666" : "#DB2777",
               color: "white",
-              cursor: "pointer",
+              cursor: sending ? "not-allowed" : "pointer",
             }}
           >
-            Send anonymously 🚀
+            {sending ? "Sending..." : "Send anonymously 🚀"}
           </button>
         </div>
       )}
