@@ -90,7 +90,7 @@ This will generate optimized static files in the `/docs` directory.
 
 #### Option 1: Using gh-pages (automated)
 
-```bash
+```bash 
 npm run deploy
 ```
 
