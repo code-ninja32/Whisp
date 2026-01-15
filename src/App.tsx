@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-rout
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./supabaseClient";
+import { UIDemo } from "./pages/UIDemo";
+import { CreateCanvas } from "./pages/CreateCanvas";
+import { CanvasRoom } from "./pages/CanvasRoom";
 
 type WhispUser = { id: string; name: string };
 type Thought = { id: number; text: string; created_at: string; reactions: number };
@@ -465,7 +468,15 @@ export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
-        <Route path="/" element={<CreateAccount />} />
+        {/* NEW CANVAS SYSTEM - Phase 2 */}
+        <Route path="/" element={<CreateCanvas />} />
+        <Route path="/canvas/:canvasId" element={<CanvasRoom />} />
+
+        {/* UI Demo */}
+        <Route path="/demo" element={<UIDemo />} />
+
+        {/* OLD ROUTES - Keep for backward compatibility */}
+        <Route path="/old" element={<CreateAccount />} />
         <Route path="/me" element={<MyInbox />} />
         <Route path="/send/:userId" element={<SendThought />} />
       </Routes>
