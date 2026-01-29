@@ -1,0 +1,145 @@
+/* Design Tokens - Creative Canvas System */
+
+:root {
+  /* === NORMAL MODE COLORS === */
+  --color-canvas-bg: #faf8f4;
+  --color-canvas-text: #2d2d2d;
+  --color-card-bg: #ffffff;
+  --color-card-shadow: rgba(0, 0, 0, 0.08);
+  --color-accent: #6D28D9;
+  --color-accent-hover: #5B21B6;
+  --color-subtle: #9ca3af;
+
+  /* === ROAST MODE COLORS === */
+  --color-roast-bg: #1a1a1a;
+  --color-roast-text: #e5e5e5;
+  --color-roast-card: #2d2d2d;
+  --color-roast-accent: #ef4444;
+  --color-roast-accent-hover: #dc2626;
+
+  /* === TYPOGRAPHY === */
+  --font-handwritten: 'Caveat', cursive;
+  --font-brush: 'Permanent Marker', cursive;
+  --font-body: 'Karla', -apple-system, sans-serif;
+
+  /* === SPACING (Organic) === */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+
+  /* === CARD PROPERTIES === */
+  --card-rotation-max: 3deg;
+  --card-border-radius: 12px;
+  --card-padding: 1.5rem;
+
+  /* === ANIMATIONS === */
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* === TEXTURES === */
+  --texture-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  --texture-paper: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='paper' x='0' y='0' width='20' height='20' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='10' cy='10' r='0.5' fill='rgba(0,0,0,0.02)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect fill='url(%23paper)' width='100' height='100'/%3E%3C/svg%3E");
+}
+
+/* === ROAST MODE OVERRIDE === */
+[data-mode="roast"] {
+  --color-canvas-bg: var(--color-roast-bg);
+  --color-canvas-text: var(--color-roast-text);
+  --color-card-bg: var(--color-roast-card);
+  --color-accent: var(--color-roast-accent);
+  --color-accent-hover: var(--color-roast-accent-hover);
+}
+
+/* === GLOBAL STYLES === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-canvas-bg);
+  color: var(--color-canvas-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* === TEXTURE OVERLAY === */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-image: var(--texture-grain), var(--texture-paper);
+  background-blend-mode: multiply;
+  opacity: 1;
+  z-index: 0;
+}
+
+/* === HANDWRITTEN TEXT === */
+.handwritten {
+  font-family: var(--font-handwritten);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.brush-text {
+  font-family: var(--font-brush);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* === ANIMATIONS === */
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--rotation, 0deg));
+  }
+}
+
+@keyframes drift {
+  0%, 100% {
+    transform: translateY(0) rotate(var(--rotation, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(calc(var(--rotation, 0deg) + 1deg));
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(109, 40, 217, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(109, 40, 217, 0.5);
+  }
+}
+
+/* === UTILITY CLASSES === */
+.card-float {
+  animation: float-in 0.6s var(--transition-smooth) forwards,
+             drift 6s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.hover-lift {
+  transition: transform 0.3s var(--transition-smooth),
+              box-shadow 0.3s var(--transition-smooth);
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px) rotate(0deg) !important;
+  box-shadow: 0 20px 40px var(--color-card-shadow);
+}
